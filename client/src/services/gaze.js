@@ -39,12 +39,84 @@ export class GazeTracker {
     webgazer.showVideoPreview(true).showPredictionPoints(false);
     webgazer.setGazeListener((data) => this.#onFrame(data));
     await webgazer.begin();
-    webgazer.setVideoViewerSize(200, 150); // small live preview, positioned by CSS
+webgazer.setVideoViewerSize(200, 150);
+
+// Enable dragging after WebGazer creates its preview.
+requestAnimationFrame(() => {
+  this.#makePreviewDraggable();
+}); // small live preview, positioned by CSS
     this.statusTimer = setInterval(() => this.#checkLost(), 200);
     // A camera that is unplugged or taken by another app must be reported, not silently treated as "no gaze".
     const camTrack = document.getElementById('webgazerVideoFeed')?.srcObject?.getVideoTracks?.()[0];
     camTrack?.addEventListener('ended', () => this.statusListeners.forEach((fn) => fn({ faceDetected: false, cameraError: true })));
     return this;
+  }
+
+  // Makes the WebGazer camera preview draggable.
+  #makePreviewDraggable() {
+    const container = document.getElementById('webgazerVideoContainer');
+    if (!container || container.dataset.draggable === 'true') return;
+
+    container.dataset.draggable = 'true';
+
+    // Override fixed bottom/right positioning with movable coordinates.
+    const rect = container.getBoundingClientRect();
+    container.style.setProperty('left', `${rect.left}px`, 'important');
+    container.style.setProperty('top', `${rect.top}px`, 'important');
+    container.style.setProperty('right', 'auto', 'important');
+    container.style.setProperty('bottom', 'auto', 'important');
+    container.style.setProperty('position', 'fixed', 'important');
+    container.style.setProperty('cursor', 'grab');
+
+    let dragging = false;
+    let startX = 0;
+    let startY = 0;
+    let startLeft = 0;
+    let startTop = 0;
+
+    const startDrag = (e) => {
+      if (e.button !== undefined && e.button !== 0) return;
+
+      dragging = true;
+      const point = e.touches ? e.touches[0] : e;
+
+      const bounds = container.getBoundingClientRect();
+      startX = point.clientX;
+      startY = point.clientY;
+      startLeft = bounds.left;
+      startTop = bounds.top;
+
+      container.style.cursor = 'grabbing';
+      e.preventDefault();
+    };
+
+    const moveDrag = (e) => {
+      if (!dragging) return;
+
+      const point = e.touches ? e.touches[0] : e;
+      const maxLeft = window.innerWidth - container.offsetWidth;
+      const maxTop = window.innerHeight - container.offsetHeight;
+
+      const left = Math.max(0, Math.min(maxLeft, startLeft + point.clientX - startX));
+      const top = Math.max(0, Math.min(maxTop, startTop + point.clientY - startY));
+
+      container.style.left = `${left}px`;
+      container.style.top = `${top}px`;
+
+      e.preventDefault();
+    };
+
+    const stopDrag = () => {
+      dragging = false;
+      container.style.cursor = 'grab';
+    };
+
+    container.addEventListener('mousedown', startDrag);
+    container.addEventListener('touchstart', startDrag, { passive: false });
+    window.addEventListener('mousemove', moveDrag);
+    window.addEventListener('touchmove', moveDrag, { passive: false });
+    window.addEventListener('mouseup', stopDrag);
+    window.addEventListener('touchend', stopDrag);
   }
 
   // Called once per video frame; data is null when no face/eyes were found in that frame.
