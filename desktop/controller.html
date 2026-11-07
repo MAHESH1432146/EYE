@@ -1,0 +1,37 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline'" />
+<style>
+  body { margin: 0; font: 12px system-ui, sans-serif; background: #0f172a; color: #e2e8f0; padding: 10px; -webkit-app-region: drag; user-select: none; }
+  .row { display: flex; justify-content: space-between; margin: 3px 0; gap: 8px; }
+  .k { color: #94a3b8; } .v { text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
+  #timer { font-size: 22px; font-weight: 600; }
+  #instr { margin: 6px 0; color: #cbd5e1; max-height: 54px; overflow: hidden; }
+  button { -webkit-app-region: no-drag; width: 100%; margin-top: 8px; padding: 8px; border: 0; border-radius: 6px; background: #dc2626; color: #fff; font-weight: 600; cursor: pointer; }
+</style>
+</head>
+<body>
+  <div id="timer">--:--</div>
+  <div id="instr">Waiting for a task…</div>
+  <div class="row"><span class="k">Active app</span><span class="v" id="active">-</span></div>
+  <div class="row"><span class="k">Activity</span><span class="v" id="verified">-</span></div>
+  <div class="row"><span class="k">Fixations</span><span class="v" id="fix">-</span></div>
+  <div class="row"><span class="k">Blinks/min</span><span class="v" id="blink">-</span></div>
+  <button id="end">End Task</button>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const fmt = (s) => { s = Math.max(0, Math.round(s / 1000)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
+    window.controller.onState((s) => {
+      $('timer').textContent = s.remainingMs == null ? '--:--' : fmt(s.remainingMs);
+      $('instr').textContent = s.instruction || 'Waiting for a task…';
+      $('active').textContent = s.activeApp || '-';
+      $('verified').textContent = { not_started: 'Not yet started', started: 'Started', closed: 'Closed' }[s.activity] || '-';
+      $('fix').textContent = s.fixations ?? '-';
+      $('blink').textContent = s.blinkRate ?? '-';
+    });
+    $('end').addEventListener('click', () => window.controller.end());
+  </script>
+</body>
+</html>
